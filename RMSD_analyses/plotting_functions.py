@@ -35,7 +35,7 @@ def make_colormap(seq):
 			cdict['blue'].append([item, b1, b2])
 	return mcolors.LinearSegmentedColormap('CustomMap', cdict)
 
-def plot_1d(xdata, ydata, color, x_axis, y_axis, system, analysis, average = False, t0 = 0, **kwargs):
+def plot_1d(xdata, ydata, color, x_axis, y_axis, system, analysis, average = False, t0 = 0, marker_style = None, **kwargs):
 	""" Creates a 1D scatter/line plot:
 
 	Usage: plot_1d(xdata, ydata, color, x_axis, y_axis, system, analysis, average = [False|True], t0 = 0)
@@ -46,8 +46,9 @@ def plot_1d(xdata, ydata, color, x_axis, y_axis, system, analysis, average = Fal
 	x_axis, y_axis: strings to be used for the axis label
 	system: descriptor for the system that produced the data
 	analysis: descriptor for the analysis that produced the data
-	average: [False|True]; Default is False; if set to True, the function will calc the average, standard dev, and standard dev of mean of the y-data
+	average: [False|True]; Default is False; if set to True, the function will calc the average, standard dev, and standard dev of mean of the y-data	# THERE IS A BUG IF average=True; must read in yunits for this function to work at the moment.
 	t0: index to begin averaging from; Default is 0
+	marker_style: default None; string that matches the desired marker style 
 	
 	kwargs:
 		xunits, yunits: string with correct math text describing the units for the x/y data
@@ -57,7 +58,7 @@ def plot_1d(xdata, ydata, color, x_axis, y_axis, system, analysis, average = Fal
 
 	"""
 	# INITIATING THE PLOT...
-	plt.plot(xdata, ydata, '%s' %(color))
+	plt.plot(xdata, ydata, '%s' %(color),marker=marker_style)
 
 	# READING IN KWARG DICTIONARY INTO SPECIFIC VARIABLES
 	for name, value in kwargs.items():
@@ -166,10 +167,10 @@ def hist1d(data, x_axis, system, analysis, num_b = 100, norm = False, average = 
 	patches = []
 
 
-def scat_hist(xdata, ydata, color, x_axis, y_axis, system, analysis, num_b = 100, average = False, t0 = 0, **kwargs):
+def scat_hist(xdata, ydata, color, x_axis, y_axis, analysis, system, num_b = 100, average = False, t0 = 0, **kwargs):
 	""" Creates 1D scatter plot w/ a 1D histogram
 
-	Usage: scat_hist(xdata, ydata, color, x_axis, y_axis, system, analysis, num_b)
+	Usage: scat_hist(xdata, ydata, color, x_axis, y_axis, analysis, system)
 	
 	Arguments:
 	xdata, ydata: self-explanatory
@@ -178,7 +179,7 @@ def scat_hist(xdata, ydata, color, x_axis, y_axis, system, analysis, num_b = 100
 	system: descriptor for the system analyzed
 	analysis: descriptor for the analysis performed and plotted
 	num_b: number of bins to be used when binning the data; Default is 100
-	average: [False|True]; Default is False; if set to True, the function will calc the average, standard dev, and standard dev of mean of the y-data
+	average: [False|True]; Default is False; if set to True, the function will calc the average, standard dev, and standard dev of mean of the y-data	# THERE IS A BUG; if average = True, need to read in xunits for this function to work...
 	t0: index to begin averaging from; Default is 0
 	
 	kwargs:
@@ -237,7 +238,7 @@ def scat_hist(xdata, ydata, color, x_axis, y_axis, system, analysis, num_b = 100
 		plt.axhline(avg, xmin=0.0, xmax=1.0, c='r')
 		plt.figtext(0.775, 0.810, '%s\n%6.4f $\\pm$ %6.4f %s \nSD = %4.3f %s' %(analysis, avg, SDOM, y_units, SD, y_units), bbox=dict(boxstyle='square', ec='r', fc='w'), fontsize=12)
 	
-	plt.savefig('%s.%s.scat_hist.png' %(system, analysis),dpi=300)
+	plt.savefig('%s.%s.scat_hist.png' %(analysis,system),dpi=300)
 	plt.close()
 
 
@@ -333,6 +334,7 @@ def matrix2d(matrix, x_axis, y_axis, cb_axis, system, analysis, **kwargs):
 		vmin, vmax: floats that define the limits for the color bar; if below vmin, data will be colored white; if above vmax, data will be colored red (might want to change this for aesthetics)
 		plt_title: string to be added as the plot title
 		cb_units: sting to be added to the color bar label to indicate the units of the color bar 
+		xlim, ylim: list (or tuple) w/ two elements, setting the limits of the x/y ranges of plot
 	"""
 
 	vmin =0.001
@@ -361,13 +363,17 @@ def matrix2d(matrix, x_axis, y_axis, cb_axis, system, analysis, **kwargs):
 			cb_axis = '%s (%s)' %(cb_axis, value)
 		elif name == 'plt_title':
 			plt.title(r'%s' %(value), size='14')
+		elif name == 'xlim':
+			plt.xlim(value)
+		elif name == 'ylim':
+			plt.ylim(value)
 	
-	plt.imshow(matrix,cmap=my_cmap,vmin=vmin,vmax=vmax,interpolation='none',origin='lower')
+	plt.pcolor(matrix,cmap=my_cmap,vmin=vmin,vmax=vmax) # ,interpolation='none',origin='lower'
 	cb1 = plt.colorbar(extend='max',cmap=my_cmap)
-	cb1.set_label(r'%s' %(cb_axis), size=12)
+	cb1.set_label(r'%s' %(cb_axis), size=14)
 	plt.grid(b=True, which='major', axis='both', color='#808080', linestyle='--')
-	plt.xlabel(r'%s' %(x_axis), size=12)
-	plt.ylabel(r'%s' %(y_axis), size=12)
-	plt.savefig('%s.%s.matrix2d.png' %(system, analysis),dpi=300)
+	plt.xlabel(r'%s' %(x_axis), size=14)
+	plt.ylabel(r'%s' %(y_axis), size=14)
+	plt.savefig('%s.%s.heatmap.png' %(system, analysis),dpi=300)
 	plt.close()
 
