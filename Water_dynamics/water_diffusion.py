@@ -1,7 +1,7 @@
-#!/mnt/lustre_fs/users/mjmcc/apps/python2.7/bin/python
-##!/Library/Frameworks/Python.framework/Versions/2.7/bin/python
 # ----------------------------------------
 # USAGE:
+
+# python water_diffusion.py config_file
 
 # ----------------------------------------
 # PREAMBLE:
@@ -79,7 +79,7 @@ config_parser(config_file)
 ffprint('Loading Analysis Universe.')
 u = MDAnalysis.Universe(parameters['prmtop_file'],parameters['pdb_file'])
 u_all = u.select_atoms('all')
-wat = u.select_atoms('resname %s' %(parameters['wat_resname']))
+wat = u.select_atoms(parameters['wat_resname'])
 u_pocket = u.select_atoms(parameters['pocket_selection'])
 
 ffprint('Grabbing the Positions of the Binding Pocket to use as reference.')
@@ -91,7 +91,7 @@ u.load_new(parameters['traj_file'])
 
 nSteps = len(u.trajectory)		# number of steps
 nWats = wat.n_residues			# number of water residues
-nRes0 = wat.residues[0].resid		# residue index is 0 indexed 
+nRes0 = wat.residues[0].resid		# grabbing global resid number of the first water molecule, note: resid is 1 indexed from pdb file
 
 if nWats*3 != wat.n_atoms:
 	ffprint('nWats*3 != wat.n_atoms. Unexpected number of water atoms. Possible selection error with water residue name.')
@@ -114,6 +114,7 @@ with open(parameters['number_of_wats_filename'],'w') as X, open(parameters['wat_
 		
 		u_all.translate(-t)	# Align to reference (moves COG of the pocket to origin)
 
+		# Wrap waters if the trajectories are not wrapped 
 		if not parameters['Wrapped']:
 			dims = u.dimensions[:3]	# obtain dimension values to be used for wrapping atoms
 			dims2 = dims/2.0
@@ -125,25 +126,25 @@ with open(parameters['number_of_wats_filename'],'w') as X, open(parameters['wat_
 		R, rmsd = rotation_matrix(u_pocket.positions,pocket_ref)	# Calculate the rotational matrix to align u to the ref, using the pocket selection as the reference selection
 		u_all.rotate(R)
 	
-		pocket_waters = wat.select_atoms('byres point 0 0 0 %d' %(parameters['pocket_radius'])) # Atom selection for the waters within radius angstroms of the COG of the pocket; Assumes that the COG of the pocket is at 0,0,0 xyz coordinates (which it should be bc the translational motion of the pocket is removed...
+		pocket_waters = wat.select_atoms('byres point 0 0 0 %d' %(parameters['pocket_radius'])) # Atom selection for the waters within radius angstroms of the COG of the pocket; Assumes that the COG of the pocket is at 0,0,0 xyz coordinates (which it is bc the translational motion of the pocket is removed)
 	
-		nRes = pocket_waters.n_residues		# Calculate the number of wates within the pocket volume
+		nRes = pocket_waters.n_residues		# Calculate the number of wates within the pocket sphere
 		X.write('%d\n' %(nRes))		# Outputting the number of water residues at timestep ts
 
 		timestep = ts.frame
 		for i in range(nRes):
-			res = pocket_waters.residues[i]		#
-			res_index = res.resid-nRes0			# grabbing the resid of the residue; needs to be zero-indexed for appropriate array assignment
-			ox_pos = res.select_atoms('name %s' %(parameters['wat_O_name'])).positions[0]
-			hy_pos = res.select_atoms('name %s' %(parameters['wat_H_name'])).positions[0]
-			oxygen_Coord[timestep,res_index,:] = ox_pos
+			res = pocket_waters.residues[i]		# creating an atom selection of water molecule i that is within the sphere
+			res_index = res.resid-nRes0			# grabbing the resid of the residue; this value is now zero-indexed and so has appropriate array assignment
+			ox_pos = res.select_atoms('name %s' %(parameters['wat_O_name'])).positions[0]	# grabbing the position of the water oxygen	
+			hy_pos = res.select_atoms('name %s' %(parameters['wat_H_name'])).positions[0]	# grabbing the position of the water hydrogen
+			oxygen_Coord[timestep,res_index,:] = ox_pos	# saving the position of the water oxygen for further analysis of MSD
 			OH_vector[timestep,res_index,:] = (ox_pos - hy_pos)/parameters['water_OH_bond_dist'] # NO NEED TO CALC THE MAGNITUDE OF THIS VECTOR BECAUSE I KNOW IF FROM THE PARAMETERS OF TIP3 (OR OTHER WATER MODEL) 
-			Y.write('%d   ' %(res_index+nRes0))	# atom_num is zero-indexed; for vmd, need one-indexed values...
+			Y.write('%d   ' %(res.resid))	# res.resid is one-indexed (from pdb) so useable in vmd for visualization
 		Y.write('\n')
 
 ffprint('Done with saving coordinates of waters within the pocket, O-H bond vectors, writing COG traj, etc.\n Beginning msd calculations.')
 
-# -------------yy---------------------------
+# ------------------------------------------
 # ANALYSIS OF TRAJECTORY DATA - MSD AND O-H BOND AUTOCORRELATION AND LONG-LIVED WATER RESIDUES
 
 long_lived = set()
@@ -151,35 +152,35 @@ for i in range(nWats):		# Looping through all water residues.
 	for j in range(nSteps):	# Looping through all timesteps for a single water.
 		if oxygen_Coord[j,i,0] == oxygen_Coord[j,i,0]:	# boolean test to see if array object has a nan value or not; nan values will not equate and produce a FALSE;
 			dt=1
-			pos0 = oxygen_Coord[j,i,:]
-			vec0 = OH_vector[j,i,:]
-			while (j+dt)<nSteps and oxygen_Coord[j+dt,i,0] == oxygen_Coord[j+dt,i,0]:	# 
-				if dt == 200 and i+nRes0+1 not in long_lived:	# the water molecule has resided in the pocket for 200 frames (or more) AND has not been added to the set already;
-					long_lived.add(i+nRes0+1)	# saving the one-indexed residue index for long-lived water molecules 
+			pos0 = oxygen_Coord[j,i,:]	# position of oxygen atom at timestep j
+			vec0 = OH_vector[j,i,:]		# vector dimensions of O-H bond at timestep j
+			while (j+dt)<nSteps and oxygen_Coord[j+dt,i,0] == oxygen_Coord[j+dt,i,0]:	# 1st test: don't go over the total number of steps analyzed; 2nd test: test for nan value or not
+				if dt == 200 and i+nRes0 not in long_lived:	# the water molecule has resided in the pocket for 200 frames (or more) AND has not been added to the set already;
+					long_lived.add(i+nRes0)	# saving the one-indexed residue index for long-lived water molecules 
 				
-				pos1 = oxygen_Coord[j+dt,i,:]
-				vec1 = OH_vector[j+dt,i,:]
+				pos1 = oxygen_Coord[j+dt,i,:]		# position of oxygen atom at timestep j+dt
+				vec1 = OH_vector[j+dt,i,:]		# vector dimensions of O-H bond at timestep j+dt
 
 				dist, dist2 = euclid_dist(pos0,pos1)	# Calculates the MSD of the oxygen atoms in the water molecule
-				scalar_product = dot_prod(vec0,vec1)
+				scalar_product = dot_prod(vec0,vec1)	# Calculates the dot product of the two O-H bond vectors
 
 				correlation_data[dt,0]+=1		# count array element
-				correlation_data[dt,1]+= dist2	# sum of MSD values
+				correlation_data[dt,1]+= dist2		# sum of MSD values
 				correlation_data[dt,2]+= dist2**2	# sum of MSD^2 values
-				correlation_data[dt,3]+= scalar_product
+				correlation_data[dt,3]+= scalar_product	# sum of dot product of the O-H bond vectors
 				dt+=1			# increment the dt value
 
-ffprint('Finished with dist2 calculations. Beginning to average and print out msd values')
+ffprint('Finished with analyzing motions of individual water molecule. Beginning to average and print out msd values.')
 
 # ----------------------------------------
 # OUTPUTTING DATA TO FILE
 
 with open(parameters['correlation_filename'],'w') as W:
-	for i in range(1,nSteps):
-		if correlation_data[i,0]>1.0:
+	for i in range(1,nSteps):		# loop over all possible dt values
+		if correlation_data[i,0]>1.0:	# test if there were any instances of waters residing in sphere for i timesteps (dt)
 			correlation_data[i,1]/=correlation_data[i,0]	# Finish the average of the MSD value for the dt
 			correlation_data[i,2]/=correlation_data[i,0]	# Finish the average of the MSD^2 value for the dt
-			correlation_data[i,3]/=correlation_data[i,0]	# Finish the average of the Velocity*Velocity autocorrelation 
+			correlation_data[i,3]/=correlation_data[i,0]	# Finish the average of the O-H bond autocorrelation analysis
 		W.write('%10.d   %10.d   %10.6f   %10.6f   %10.6f \n' %(i,correlation_data[i,0],correlation_data[i,1],correlation_data[i,2],correlation_data[i,3]))
 
 ffprint('Writing the unique TIP3 oxygen numbers that are found to be within the binding pocket for longer than 200 frames.')
