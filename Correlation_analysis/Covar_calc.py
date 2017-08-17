@@ -1,9 +1,8 @@
-#!/Library/Frameworks/Python.framework/Versions/2.7/bin/python
-##!/mnt/lustre_fs/users/mjmcc/apps/python2.7/bin/python
 # ----------------------------------------
 # USAGE:
 # ----------------------------------------
 
+# python res_res_correlation.py config_file
 
 # ----------------------------------------
 # PREAMBLE:
