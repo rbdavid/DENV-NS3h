@@ -1,6 +1,7 @@
-#!/Library/Frameworks/Python.framework/Versions/2.7/bin/python
 # ----------------------------------------
 # USAGE:
+
+# python input_file (output_file from avg_structure.py) pdb_file
 
 # ----------------------------------------
 # PREAMBLE:
@@ -15,10 +16,10 @@ from distance_functions import *
 # ----------------------------------------
 # VARIABLE DECLARATION
 
-input_file = sys.argv[1]
-pdb_file = sys.argv[2]
+input_file = sys.argv[1]        # out_file from the avg_structure.py config file; this file contains a list of times averaged over; this list should only include times from which a weighted average is desired...
+pdb_file = sys.argv[2]          # pdb file from the avg_structure.py config file;
 
-alignment = 'protein and name CA and (resid 20:25 or resid 50:55 or resid 73:75 or resid 90:94 or resid 112:116 or resid 142:147 or resid 165:169 or resid 190:194 or resid 214:218 or resid 236:240 or resid 253:258 or resid 303:307)'
+alignment = 'protein and name CA and (resid 20:25 50:55 73:75 90:94 112:116 142:147 165:169 190:194 214:218 236:240 253:258 303:307)'
 
 zeros = np.zeros
 dot_prod = np.dot
@@ -48,8 +49,8 @@ nSteps = np.sum(average_list[:,2])
 u = MDAnalysis.Universe(pdb_file)
 u_all = u.select_atoms('all')
 u_align = u.select_atoms(alignment)
-u_important = u.select_atoms('protein or nucleic or resname A5 or resname A3 or resname U5 or resname atp or resname adp or resname PHX or resname MG')
-u_substrate = u.select_atoms('nucleic or resname A5 or resname A3 or resname U5 or resname atp or resname adp or resname PHX or resname MG')
+u_important = u.select_atoms('protein or nucleic or resname A5 A3 U5 atp adp PHX MG')
+u_substrate = u.select_atoms('nucleic or resname A5 A3 U5 atp adp PHX MG')
 pos0 = u_align.positions
 
 # GRABBING IMPORTANT NUMBERS FROM THE UNIVERSE
@@ -71,8 +72,8 @@ for i in range(nAverages):
 	# INITIATING ATOM SELECTIONS
 	temp_all = temp.select_atoms('all')
 	temp_align = temp.select_atoms(alignment)
-	temp_important = temp.select_atoms('protein or nucleic or resname A5 or resname A3 or resname U5 or resname atp or resname adp or resname PHX or resname MG')
-	temp_substrate = temp.select_atoms('nucleic or resname A5 or resname A3 or resname U5 or resname atp or resname adp or resname PHX or resname MG')
+	temp_important = temp.select_atoms('protein or nucleic or resname A5 A3 U5 atp adp PHX MG')
+	temp_substrate = temp.select_atoms('nucleic or resname A5 A3 U5 atp adp PHX MG')
 
 	# TRANSLATING AVERAGE STRUCTURES TO THE PDB STRUCTURE
 	temp_all.translate(-temp_align.center_of_mass())
