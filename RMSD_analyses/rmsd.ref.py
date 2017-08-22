@@ -18,7 +18,7 @@ flush = sys.stdout.flush
 config_file = sys.argv[1]
 
 # ----------------------------------------
-# FUNCTIONS: (NOT INCLUDING MAKE_SELECTIONS FUNCTION WHICH IS FOUND AT THE BOTTOM OF THIS SCRIPT)
+# FUNCTIONS: 
 
 def ffprint(string):
 	print '%s' %(string)
