@@ -1,0 +1,19 @@
+#!/bin/bash 
+
+SYSTEM=$1
+START=$2
+STOP=$3
+STEP=$4
+
+((dSTEP=$STEP-1))
+echo $dSTEP
+for ((prod=$START;prod<=$STOP;prod+=$STEP))
+do
+	((a=$prod + $dSTEP))
+	echo $prod $a
+	printf -v x "%03d" $prod
+	printf -v y "%03d" $a
+	sed -e s/AAA/$prod/g -e s/aaa/$x/g -e s/BBB/$a/g -e s/bbb/$y/g -e s/CCC/$SYSTEM/g < sample.config > avg_structure.config
+	time python avg_structure.py avg_structure.config
+done
+
