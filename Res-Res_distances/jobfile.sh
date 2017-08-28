@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=dist_cal.a_apo
 #SBATCH --output=dist_cal.a_apo.output
-#SBATCH --time=144:00:00 
+#SBATCH --time=68:00:00 
 #SBATCH --nodes=1
 #SBATCH --exclusive
 
@@ -10,8 +10,6 @@ export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/software/usr/hpcx-v1.2.0-292-gcc-MLNX_
 
 export PYTHON_EGG_CACHE="./"
 
-PDB_LOC='/mnt/lustre_fs/users/rbdavid/molec_machines/dns3h/AMBER_apo/truncated.pdb'
-TRAJ_LOC='/mnt/lustre_fs/users/rbdavid/molec_machines/dns3h/AMBER_apo/Truncated/'
 NPRODS=150
 NCPUS=20
 
@@ -25,10 +23,8 @@ do
 		((a=$prod+4))
 		printf -v x "%03d" $prod
 		printf -v y "%03d" $a
-		mkdir $x.$y.distance_matrix
-		cd $x.$y.distance_matrix
-		time ../matrix_calc.py $PDB_LOC $TRAJ_LOC $prod $a > dist_calc.output & 
-		cd ../
+		sed -e s/AAA/$prod/g -e s/BBB/$a/g -e s/CCC/$SYSTEM/g -e s/aaa/$x/g -e s/bbb/$y/g < sample.config > $x.$y.res_res_distances.config 
+		time python res_res_distances.py $x.$y.res_res_distances.config > $x.$y.output & 
 		((j=$j+1))
 		((prod=$prod+5))
 	done
